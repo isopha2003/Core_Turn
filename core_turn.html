@@ -354,8 +354,9 @@
             let dy = 200 - e.y;
             let dist = Math.hypot(dx, dy);
             
-            // 현재 콤보에 맞춰 속도 동적 업데이트
-            e.speed = 1.5 + (combo * 0.1);
+            // 5콤보 단위로 속도 증가
+            let speedLevel = Math.floor(combo / 5);
+            e.speed = 1.5 + (speedLevel * 0.5);
             
             e.x += (dx / dist) * e.speed;
             e.y += (dy / dist) * e.speed;
