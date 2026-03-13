@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Core Turn - Fixed</title>
+    <title>Core Turn - Perfect Version</title>
     <style>
         body { margin: 0; background: #1a1a1a; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; color: white; font-family: 'Courier New', Courier, monospace; }
         canvas { border: 4px solid #333; box-shadow: 0 0 20px rgba(0,0,0,0.5); background: #050505; cursor: pointer; }
@@ -27,23 +27,23 @@
 
     const COLORS = ['#FF4444', '#FFD700', '#44FF44', '#4444FF']; // 0:빨, 1:황, 2:초, 3:파
     let score = 0;
-    let rotation = 0; 
+    let rotationIndex = 0; // 0, 1, 2, 3 (90도 단위 정수 관리)
     let enemies = [];
     let gameActive = true;
 
-    // 클릭 시 90도 회전 및 재시작 처리
     canvas.addEventListener('mousedown', () => {
         if(!gameActive) { 
             resetGame();
             return; 
         }
-        rotation += Math.PI / 2;
+        // 시계 방향 회전 (0 -> 1 -> 2 -> 3)
+        rotationIndex = (rotationIndex + 1) % 4;
     });
 
     function resetGame() {
         score = 0;
         enemies = [];
-        rotation = 0;
+        rotationIndex = 0;
         gameActive = true;
         scoreElement.innerText = `Score: 0`;
         scoreElement.style.color = "white";
@@ -60,7 +60,7 @@
             y: 200 + Math.sin(angle) * dist,
             color: COLORS[colorIndex],
             colorIndex: colorIndex,
-            speed: 1.5 + (score * 0.02),
+            speed: 1.5 + (score * 0.01), // 난이도 조절
             size: 10
         });
     }
@@ -68,7 +68,7 @@
     setInterval(spawnEnemy, 1000);
 
     function drawGameOver() {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+        ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = "white";
         ctx.font = "bold 35px Arial";
@@ -89,13 +89,13 @@
         // --- 1. 중앙 코어 그리기 ---
         ctx.save();
         ctx.translate(200, 200);
-        ctx.rotate(rotation);
+        // 정수 인덱스를 실제 라디안 각도로 변환하여 회전
+        ctx.rotate(rotationIndex * (Math.PI / 2));
         
         for(let i=0; i<4; i++) {
             ctx.beginPath();
             ctx.strokeStyle = COLORS[i];
-            ctx.lineWidth = 8;
-            // 각 인덱스에 맞는 면 그리기
+            ctx.lineWidth = 10;
             if(i===0) ctx.moveTo(-20, -25), ctx.lineTo(20, -25); // 상 (빨강)
             if(i===1) ctx.moveTo(25, -20), ctx.lineTo(25, 20);   // 우 (황색)
             if(i===2) ctx.moveTo(-20, 25), ctx.lineTo(20, 25);   // 하 (초록)
@@ -111,47 +111,41 @@
             let dy = 200 - e.y;
             let dist = Math.hypot(dx, dy);
             
-            // 적을 중앙으로 이동
             e.x += (dx / dist) * e.speed;
             e.y += (dy / dist) * e.speed;
 
-            // 적 그리기
             ctx.fillStyle = e.color;
             ctx.beginPath();
             ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2);
             ctx.fill();
 
-            // 충돌 판정
-            if (dist < 30) {
-                // 적이 들어오는 각도 계산
-                let angleToCore = Math.atan2(e.y - 200, e.x - 200); 
+            if (dist < 32) {
+                // 적이 들어오는 절대 각도 (라디안)
+                let angleToCore = Math.atan2(dy, dx); 
                 
-                // 코어의 회전을 고려한 상대 각도 계산
-                let relativeAngle = (angleToCore - rotation) % (Math.PI * 2);
-                if (relativeAngle < 0) relativeAngle += Math.PI * 2;
+                // 1. 적이 들어오는 방향 인덱스 (0:상, 1:우, 2:하, 3:좌)
+                // Math.PI / 2 간격으로 나누어 방향 판정
+                let entrySide = (Math.round((angleToCore + Math.PI) / (Math.PI / 2)) + 2) % 4;
 
-                // 상대 각도를 면 인덱스로 변환 (0:상, 1:우, 2:하, 3:좌)
-                let hitSide = Math.floor(((relativeAngle + Math.PI / 4) % (Math.PI * 2)) / (Math.PI / 2));
-                let correctedSide = (hitSide + 3) % 4; // 12시 방향을 0으로 맞추기 위한 보정
+                // 2. 현재 회전 상태(rotationIndex)를 고려하여 
+                // 해당 방향에 위치한 면의 '원래 색상 인덱스'를 역계산
+                let currentColorAtSide = (e.colorIndex + rotationIndex) % 4;
 
-                if (correctedSide === e.colorIndex) {
-                    // 성공: 점수 획득
+                if (entrySide === currentColorAtSide) {
                     enemies.splice(i, 1);
                     score += 10;
                     scoreElement.innerText = `Score: ${score}`;
                     scoreElement.style.color = e.color;
                 } else {
-                    // 실패: 게임 오버
                     gameActive = false;
                     drawGameOver();
-                    return; // 루프 즉시 종료
+                    return; 
                 }
             }
         }
         requestAnimationFrame(update);
     }
 
-    // 게임 시작
     update();
 </script>
 </body>
