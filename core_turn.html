@@ -31,12 +31,68 @@
     let enemies = [];
     let gameActive = true;
 
+    // 사운드 생성 함수
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    
+    function playRotateSound() {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = 400;
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.1);
+    }
+    
+    function playSuccessSound() {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = 800;
+        oscillator.type = 'triangle';
+        
+        gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.15);
+    }
+    
+    function playGameOverSound() {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(300, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(100, audioContext.currentTime + 0.3);
+        oscillator.type = 'sawtooth';
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.3);
+    }
+
     canvas.addEventListener('mousedown', () => {
         if(!gameActive) { 
             resetGame();
             return; 
         }
         rotationIndex = (rotationIndex + 1) % 4;
+        playRotateSound();
     });
 
     function resetGame() {
@@ -165,6 +221,7 @@
                 if (e.colorIndex === currentColorIndexAtSide) {
                     // 성공!
                     console.log('✅ 성공!');
+                    playSuccessSound();
                     enemies.splice(i, 1);
                     score += 10;
                     scoreElement.innerText = `Score: ${score}`;
@@ -172,6 +229,7 @@
                 } else {
                     // 실패: 게임 오버
                     console.log('❌ 실패! GAME OVER');
+                    playGameOverSound();
                     gameActive = false;
                     drawGameOver();
                     return; 
