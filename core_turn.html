@@ -32,9 +32,9 @@
     let gameActive = true;
 
     // 사운드 생성 함수
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    let bgmOscillators = [];
+    let audioContext = new (window.AudioContext || window.webkitAudioContext)();
     let bgmPlaying = false;
+    let bgmTimeout = null;
     
     // 배경음악 - 신나는 업비트 멜로디
     function playBGM() {
@@ -100,7 +100,7 @@
                 osc.stop(startTime + note.time + note.duration);
             });
             
-            setTimeout(playLoop, loopDuration * 1000);
+            bgmTimeout = setTimeout(playLoop, loopDuration * 1000);
         }
         
         playLoop();
@@ -108,6 +108,15 @@
     
     function stopBGM() {
         bgmPlaying = false;
+        if (bgmTimeout) {
+            clearTimeout(bgmTimeout);
+            bgmTimeout = null;
+        }
+        // AudioContext 완전히 닫고 새로 생성
+        if (audioContext) {
+            audioContext.close();
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
     }
     
     function playRotateSound() {
@@ -170,7 +179,6 @@
         
         if(!gameActive) { 
             resetGame();
-            playBGM();
             return; 
         }
         rotationIndex = (rotationIndex + 1) % 4;
@@ -184,6 +192,13 @@
         gameActive = true;
         scoreElement.innerText = `Score: 0`;
         scoreElement.style.color = "white";
+        
+        // BGM 완전히 정지하고 재시작
+        stopBGM();
+        setTimeout(() => {
+            playBGM();
+        }, 100);
+        
         update(); 
     }
 
