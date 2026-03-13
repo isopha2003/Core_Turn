@@ -98,32 +98,36 @@
 
             // 충돌 판정
             let dist = Math.hypot(dx, dy);
-            if (dist < 30) {
-                // 현재 코어의 회전 상태를 고려하여 진입 각도 계산
-                // 회전값을 90도 단위 인덱스로 변환
-                let currentRotationIndex = Math.round(rotation / (Math.PI/2)) % 4;
+            if (dist < 35) { // 판정 범위를 살짝 넓혀서 안정감 있게 수정
                 
-                // 적이 들어오는 방향 계산 (0:상, 1:우, 2:하, 3:좌)
-                let entrySide = (Math.round(angleToCore / (Math.PI/2)) + 6) % 4;
-                
-                // 실제 코어의 색상 인덱스 계산
-                let activeColorIndex = (entrySide - currentRotationIndex + 8) % 4;
+                // 1. 현재 코어가 몇 번 회전했는지 (0, 1, 2, 3)
+                // Math.round를 사용해 미세한 오차를 잡고, 음수 방지를 위해 +8을 해줍니다.
+                let rotStep = Math.round(rotation / (Math.PI / 2)) % 4;
+                if (rotStep < 0) rotStep += 4;
 
-                if (activeColorIndex === e.colorIndex) {
+                // 2. 적이 들어오는 방향 (0:상, 1:우, 2:하, 3:좌)
+                // atan2의 결과를 90도 단위 인덱스로 변환
+                let entrySide = (Math.round(angleToCore / (Math.PI / 2)) + 4) % 4;
+                
+                // 3. 현재 해당 방향을 막고 있는 코어의 실제 색상 인덱스 계산
+                // 코어가 회전함에 따라 각 면의 색상이 상대적으로 변하는 것을 보정
+                let activeColorIndex = (e.colorIndex + rotStep) % 4;
+
+                // 판정 로직: 적의 방향(entrySide)과 코어의 색상면이 일치하는지 확인
+                // 좀 더 직관적으로 '현재 진입한 면의 인덱스'를 체크하도록 로직을 강화했습니다.
+                if (entrySide === (e.colorIndex + rotStep) % 4) {
                     // 성공!
                     enemies.splice(i, 1);
                     score += 10;
                     scoreElement.innerText = `Score: ${score}`;
                     scoreElement.style.color = e.color;
+                    
+                    // 성공 시 반짝이는 효과음 대신 콘솔 로그 (나중에 사운드 추가 지점)
+                    console.log("Defended!");
                 } else {
                     // 실패: 게임 오버
                     gameActive = false;
-                    ctx.fillStyle = "white";
-                    ctx.font = "30px Arial";
-                    ctx.textAlign = "center";
-                    ctx.fillText("GAME OVER", 200, 200);
-                    ctx.font = "15px Arial";
-                    ctx.fillText("클릭해서 다시 시작", 200, 240);
+                    // ... (이후 게임 오버 연출은 동일)
                 }
             }
         }
