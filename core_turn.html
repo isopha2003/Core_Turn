@@ -30,6 +30,9 @@
     let rotationIndex = 0;
     let enemies = [];
     let gameActive = true;
+    let combo = 0;
+    let comboTimer = null;
+    let particles = [];
 
     // 사운드 생성 함수
     let audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -143,7 +146,8 @@
         oscillator.connect(gainNode);
         gainNode.connect(audioContext.destination);
         
-        oscillator.frequency.value = 800;
+        // 콤보에 따라 음높이 변경
+        oscillator.frequency.value = 800 + (combo * 50);
         oscillator.type = 'triangle';
         
         gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
@@ -151,6 +155,24 @@
         
         oscillator.start(audioContext.currentTime);
         oscillator.stop(audioContext.currentTime + 0.15);
+    }
+    
+    function playComboSound(comboCount) {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(1000, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(1500, audioContext.currentTime + 0.2);
+        oscillator.type = 'square';
+        
+        gainNode.gain.setValueAtTime(0.25, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.2);
     }
     
     function playGameOverSound() {
@@ -190,6 +212,9 @@
         enemies = [];
         rotationIndex = 0;
         gameActive = true;
+        combo = 0;
+        particles = [];
+        if (comboTimer) clearTimeout(comboTimer);
         scoreElement.innerText = `Score: 0`;
         scoreElement.style.color = "white";
         
@@ -257,6 +282,37 @@
         
         ctx.setLineDash([]);
 
+        // 파티클 그리기 및 업데이트
+        for (let i = particles.length - 1; i >= 0; i--) {
+            let p = particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life -= 1;
+            p.alpha = p.life / 30;
+            
+            ctx.fillStyle = `rgba(${p.r}, ${p.g}, ${p.b}, ${p.alpha})`;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+            
+            if (p.life <= 0) {
+                particles.splice(i, 1);
+            }
+        }
+
+        // 콤보 표시
+        if (combo > 1) {
+            ctx.save();
+            ctx.font = `bold ${30 + combo * 2}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.fillStyle = combo >= 10 ? '#FF00FF' : combo >= 5 ? '#FFD700' : '#FFF';
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 3;
+            ctx.strokeText(`${combo} COMBO!`, 200, 80);
+            ctx.fillText(`${combo} COMBO!`, 200, 80);
+            ctx.restore();
+        }
+
         // 중앙 코어 그리기
         ctx.save();
         ctx.translate(200, 200);
@@ -320,7 +376,45 @@
                     console.log('✅ 성공!');
                     playSuccessSound();
                     enemies.splice(i, 1);
-                    score += 10;
+                    
+                    // 콤보 증가
+                    combo++;
+                    if (comboTimer) clearTimeout(comboTimer);
+                    comboTimer = setTimeout(() => {
+                        combo = 0;
+                    }, 2000); // 2초 안에 다음 성공해야 콤보 유지
+                    
+                    // 콤보에 따른 점수 배율
+                    let comboMultiplier = Math.min(combo, 10);
+                    score += 10 * comboMultiplier;
+                    
+                    // 콤보 사운드 (3콤보 이상일 때)
+                    if (combo >= 3 && combo % 3 === 0) {
+                        playComboSound(combo);
+                    }
+                    
+                    // 파티클 생성
+                    for (let j = 0; j < 10 + combo; j++) {
+                        const angle = (Math.PI * 2 * j) / (10 + combo);
+                        const speed = 2 + Math.random() * 3;
+                        const colorRGB = e.color === '#FF4444' ? [255, 68, 68] :
+                                       e.color === '#FFD700' ? [255, 215, 0] :
+                                       e.color === '#44FF44' ? [68, 255, 68] :
+                                       [68, 68, 255];
+                        particles.push({
+                            x: e.x,
+                            y: e.y,
+                            vx: Math.cos(angle) * speed,
+                            vy: Math.sin(angle) * speed,
+                            r: colorRGB[0],
+                            g: colorRGB[1],
+                            b: colorRGB[2],
+                            alpha: 1,
+                            life: 30,
+                            size: 3 + Math.random() * 2
+                        });
+                    }
+                    
                     scoreElement.innerText = `Score: ${score}`;
                     scoreElement.style.color = e.color;
                 } else {
