@@ -354,6 +354,9 @@
             let dy = 200 - e.y;
             let dist = Math.hypot(dx, dy);
             
+            // 현재 콤보에 맞춰 속도 동적 업데이트
+            e.speed = 1.5 + (combo * 0.1);
+            
             e.x += (dx / dist) * e.speed;
             e.y += (dy / dist) * e.speed;
 
@@ -473,7 +476,7 @@
                     // 실패: 목숨 감소
                     console.log('❌ 실패!');
                     lives--;
-                    combo = 0; // 콤보 리셋
+                    combo = 0; // 콤보 리셋 -> 다음 프레임부터 속도 자동으로 느려짐
                     updateLivesDisplay();
                     enemies.splice(i, 1);
                     
