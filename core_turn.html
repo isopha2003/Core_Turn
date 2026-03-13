@@ -33,6 +33,69 @@
 
     // 사운드 생성 함수
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    let bgmOscillators = [];
+    let bgmPlaying = false;
+    
+    // 배경음악 - 신나는 8비트 멜로디
+    function playBGM() {
+        if (bgmPlaying) return;
+        bgmPlaying = true;
+        
+        // 멜로디 패턴 (도레미파솔라시도 스케일)
+        const melody = [
+            { freq: 523.25, time: 0.0, duration: 0.2 },   // C
+            { freq: 659.25, time: 0.2, duration: 0.2 },   // E
+            { freq: 783.99, time: 0.4, duration: 0.2 },   // G
+            { freq: 659.25, time: 0.6, duration: 0.2 },   // E
+            { freq: 523.25, time: 0.8, duration: 0.2 },   // C
+            { freq: 587.33, time: 1.0, duration: 0.2 },   // D
+            { freq: 659.25, time: 1.2, duration: 0.2 },   // E
+            { freq: 587.33, time: 1.4, duration: 0.4 },   // D
+            
+            { freq: 587.33, time: 1.8, duration: 0.2 },   // D
+            { freq: 659.25, time: 2.0, duration: 0.2 },   // E
+            { freq: 783.99, time: 2.2, duration: 0.2 },   // G
+            { freq: 880.00, time: 2.4, duration: 0.2 },   // A
+            { freq: 783.99, time: 2.6, duration: 0.2 },   // G
+            { freq: 659.25, time: 2.8, duration: 0.2 },   // E
+            { freq: 587.33, time: 3.0, duration: 0.2 },   // D
+            { freq: 523.25, time: 3.2, duration: 0.4 },   // C
+        ];
+        
+        const loopDuration = 3.6;
+        
+        function playLoop() {
+            if (!bgmPlaying) return;
+            
+            const startTime = audioContext.currentTime;
+            
+            melody.forEach(note => {
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+                
+                osc.type = 'square';
+                osc.frequency.value = note.freq;
+                
+                gain.gain.setValueAtTime(0, startTime + note.time);
+                gain.gain.linearRampToValueAtTime(0.08, startTime + note.time + 0.01);
+                gain.gain.exponentialRampToValueAtTime(0.01, startTime + note.time + note.duration);
+                
+                osc.start(startTime + note.time);
+                osc.stop(startTime + note.time + note.duration);
+            });
+            
+            setTimeout(playLoop, loopDuration * 1000);
+        }
+        
+        playLoop();
+    }
+    
+    function stopBGM() {
+        bgmPlaying = false;
+    }
     
     function playRotateSound() {
         const oscillator = audioContext.createOscillator();
@@ -87,8 +150,14 @@
     }
 
     canvas.addEventListener('mousedown', () => {
+        // 첫 클릭에 BGM 시작 (브라우저 정책상 사용자 인터랙션 필요)
+        if (!bgmPlaying && gameActive) {
+            playBGM();
+        }
+        
         if(!gameActive) { 
             resetGame();
+            playBGM();
             return; 
         }
         rotationIndex = (rotationIndex + 1) % 4;
@@ -229,6 +298,7 @@
                 } else {
                     // 실패: 게임 오버
                     console.log('❌ 실패! GAME OVER');
+                    stopBGM();
                     playGameOverSound();
                     gameActive = false;
                     drawGameOver();
