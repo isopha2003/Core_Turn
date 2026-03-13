@@ -36,33 +36,46 @@
     let bgmOscillators = [];
     let bgmPlaying = false;
     
-    // 배경음악 - 신나는 8비트 멜로디
+    // 배경음악 - 신나는 업비트 멜로디
     function playBGM() {
         if (bgmPlaying) return;
         bgmPlaying = true;
         
-        // 멜로디 패턴 (도레미파솔라시도 스케일)
+        // 신나고 경쾌한 멜로디 - 약 8초 루프
         const melody = [
-            { freq: 523.25, time: 0.0, duration: 0.2 },   // C
-            { freq: 659.25, time: 0.2, duration: 0.2 },   // E
-            { freq: 783.99, time: 0.4, duration: 0.2 },   // G
-            { freq: 659.25, time: 0.6, duration: 0.2 },   // E
-            { freq: 523.25, time: 0.8, duration: 0.2 },   // C
-            { freq: 587.33, time: 1.0, duration: 0.2 },   // D
-            { freq: 659.25, time: 1.2, duration: 0.2 },   // E
-            { freq: 587.33, time: 1.4, duration: 0.4 },   // D
+            // 첫 번째 구간 (0-2초)
+            { freq: 659.25, time: 0.0, duration: 0.3 },    // E
+            { freq: 783.99, time: 0.3, duration: 0.3 },    // G
+            { freq: 880.00, time: 0.6, duration: 0.4 },    // A
+            { freq: 1046.50, time: 1.0, duration: 0.5 },   // C
+            { freq: 880.00, time: 1.5, duration: 0.25 },   // A
+            { freq: 783.99, time: 1.75, duration: 0.25 },  // G
             
-            { freq: 587.33, time: 1.8, duration: 0.2 },   // D
-            { freq: 659.25, time: 2.0, duration: 0.2 },   // E
-            { freq: 783.99, time: 2.2, duration: 0.2 },   // G
-            { freq: 880.00, time: 2.4, duration: 0.2 },   // A
-            { freq: 783.99, time: 2.6, duration: 0.2 },   // G
-            { freq: 659.25, time: 2.8, duration: 0.2 },   // E
-            { freq: 587.33, time: 3.0, duration: 0.2 },   // D
-            { freq: 523.25, time: 3.2, duration: 0.4 },   // C
+            // 두 번째 구간 (2-4초)
+            { freq: 659.25, time: 2.0, duration: 0.3 },    // E
+            { freq: 783.99, time: 2.3, duration: 0.3 },    // G
+            { freq: 659.25, time: 2.6, duration: 0.2 },    // E
+            { freq: 587.33, time: 2.8, duration: 0.4 },    // D
+            { freq: 659.25, time: 3.2, duration: 0.4 },    // E
+            { freq: 783.99, time: 3.6, duration: 0.4 },    // G
+            
+            // 세 번째 구간 (4-6초)
+            { freq: 880.00, time: 4.0, duration: 0.3 },    // A
+            { freq: 1046.50, time: 4.3, duration: 0.3 },   // C
+            { freq: 1174.66, time: 4.6, duration: 0.4 },   // D (높은음)
+            { freq: 1046.50, time: 5.0, duration: 0.3 },   // C
+            { freq: 880.00, time: 5.3, duration: 0.3 },    // A
+            { freq: 783.99, time: 5.6, duration: 0.4 },    // G
+            
+            // 네 번째 구간 (6-8초)
+            { freq: 659.25, time: 6.0, duration: 0.4 },    // E
+            { freq: 587.33, time: 6.4, duration: 0.3 },    // D
+            { freq: 659.25, time: 6.7, duration: 0.3 },    // E
+            { freq: 783.99, time: 7.0, duration: 0.5 },    // G
+            { freq: 880.00, time: 7.5, duration: 0.5 },    // A
         ];
         
-        const loopDuration = 3.6;
+        const loopDuration = 8.0;
         
         function playLoop() {
             if (!bgmPlaying) return;
@@ -80,7 +93,7 @@
                 osc.frequency.value = note.freq;
                 
                 gain.gain.setValueAtTime(0, startTime + note.time);
-                gain.gain.linearRampToValueAtTime(0.08, startTime + note.time + 0.01);
+                gain.gain.linearRampToValueAtTime(0.12, startTime + note.time + 0.01);
                 gain.gain.exponentialRampToValueAtTime(0.01, startTime + note.time + note.duration);
                 
                 osc.start(startTime + note.time);
