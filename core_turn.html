@@ -348,30 +348,48 @@
             if (dist < 32) {
                 // 적의 위치로 진입 방향 판단
                 // 상(0), 우(1), 하(2), 좌(3)
-                let entrySide;
                 let relX = e.x - 200;
                 let relY = e.y - 200;
                 
-                // 절대값이 큰 축을 기준으로 방향 결정
-                if (Math.abs(relX) > Math.abs(relY)) {
-                    // 좌우
-                    entrySide = relX > 0 ? 1 : 3; // 우 or 좌
+                // 경계선 근처 판정을 위한 허용 범위
+                const threshold = 0.7; // X와 Y 차이가 이 비율 이하면 경계선으로 간주
+                
+                let entrySides = []; // 가능한 진입 방향들
+                
+                if (Math.abs(relX) / Math.abs(relY) > threshold && Math.abs(relX) / Math.abs(relY) < 1/threshold) {
+                    // 대각선 근처 - 두 방향 모두 체크
+                    if (relX > 0 && relY > 0) {
+                        entrySides = [1, 2]; // 우, 하
+                    } else if (relX < 0 && relY > 0) {
+                        entrySides = [3, 2]; // 좌, 하
+                    } else if (relX < 0 && relY < 0) {
+                        entrySides = [3, 0]; // 좌, 상
+                    } else {
+                        entrySides = [1, 0]; // 우, 상
+                    }
                 } else {
-                    // 상하
-                    entrySide = relY > 0 ? 2 : 0; // 하 or 상
+                    // 명확한 방향
+                    if (Math.abs(relX) > Math.abs(relY)) {
+                        entrySides = [relX > 0 ? 1 : 3]; // 우 or 좌
+                    } else {
+                        entrySides = [relY > 0 ? 2 : 0]; // 하 or 상
+                    }
                 }
 
-                // 회전 상태 반영: 코어가 시계방향으로 회전하면 색상 위치도 이동
-                // rotationIndex 0: 상=0, 우=1, 하=2, 좌=3
-                // rotationIndex 1: 상=3, 우=0, 하=1, 좌=2
-                // rotationIndex 2: 상=2, 우=3, 하=0, 좌=1
-                // rotationIndex 3: 상=1, 우=2, 하=3, 좌=0
-                let currentColorIndexAtSide = (4 + entrySide - rotationIndex) % 4;
+                // 여러 방향 중 하나라도 색이 맞으면 성공
+                let success = false;
+                for (let side of entrySides) {
+                    let currentColorIndexAtSide = (4 + side - rotationIndex) % 4;
+                    if (e.colorIndex === currentColorIndexAtSide) {
+                        success = true;
+                        break;
+                    }
+                }
 
                 // 디버그 출력
-                console.log(`적 색상: ${e.colorIndex}, 진입 방향: ${entrySide}, 회전: ${rotationIndex}, 현재 방향 색: ${currentColorIndexAtSide}`);
+                console.log(`적 색상: ${e.colorIndex}, 진입 방향: ${entrySides}, 회전: ${rotationIndex}, 결과: ${success ? '✅' : '❌'}`);
 
-                if (e.colorIndex === currentColorIndexAtSide) {
+                if (success) {
                     // 성공!
                     console.log('✅ 성공!');
                     playSuccessSound();
