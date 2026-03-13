@@ -10,10 +10,11 @@
     </style>
 </head>
 <body>
-    <div id="ui">
+            <div id="ui">
         <h1>CORE TURN</h1>
         <p class="msg">클릭해서 회전! 같은 색 면으로 조각을 막으세요.</p>
         <h2 id="score">Score: 0</h2>
+        <div id="lives" style="font-size: 20px; margin-top: 10px; font-family: monospace; letter-spacing: 3px;"></div>
     </div>
     <canvas id="gameCanvas"></canvas>
 
@@ -21,6 +22,7 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const scoreElement = document.getElementById('score');
+    const livesElement = document.getElementById('lives');
 
     canvas.width = 400;
     canvas.height = 400;
@@ -33,6 +35,8 @@
     let combo = 0;
     let comboTimer = null;
     let particles = [];
+    let lives = 3;
+    let maxLives = 3;
 
     // 사운드 생성 함수
     let audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -207,6 +211,17 @@
         playRotateSound();
     });
 
+    function updateLivesDisplay() {
+        let heartsHTML = '';
+        for (let i = 0; i < lives; i++) {
+            heartsHTML += '<span style="color: #44FF44;">●</span> ';
+        }
+        for (let i = lives; i < maxLives; i++) {
+            heartsHTML += '<span style="color: #333;">●</span> ';
+        }
+        livesElement.innerHTML = heartsHTML;
+    }
+
     function resetGame() {
         score = 0;
         enemies = [];
@@ -214,9 +229,11 @@
         gameActive = true;
         combo = 0;
         particles = [];
+        lives = 3;
         if (comboTimer) clearTimeout(comboTimer);
         scoreElement.innerText = `Score: 0`;
         scoreElement.style.color = "white";
+        updateLivesDisplay();
         
         // BGM 완전히 정지하고 재시작
         stopBGM();
@@ -406,6 +423,23 @@
                     let comboMultiplier = Math.min(combo, 10);
                     score += 10 * comboMultiplier;
                     
+                    // 5콤보마다 목숨 회복!
+                    if (combo % 5 === 0 && combo > 0 && lives < maxLives) {
+                        lives++;
+                        updateLivesDisplay();
+                        // 목숨 회복 사운드
+                        const osc = audioContext.createOscillator();
+                        const gain = audioContext.createGain();
+                        osc.connect(gain);
+                        gain.connect(audioContext.destination);
+                        osc.frequency.setValueAtTime(1200, audioContext.currentTime);
+                        osc.frequency.exponentialRampToValueAtTime(1800, audioContext.currentTime + 0.3);
+                        gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                        osc.start(audioContext.currentTime);
+                        osc.stop(audioContext.currentTime + 0.3);
+                    }
+                    
                     // 콤보 사운드 (3콤보 이상일 때)
                     if (combo >= 3 && combo % 3 === 0) {
                         playComboSound(combo);
@@ -436,13 +470,34 @@
                     scoreElement.innerText = `Score: ${score}`;
                     scoreElement.style.color = e.color;
                 } else {
-                    // 실패: 게임 오버
-                    console.log('❌ 실패! GAME OVER');
-                    stopBGM();
-                    playGameOverSound();
-                    gameActive = false;
-                    drawGameOver();
-                    return; 
+                    // 실패: 목숨 감소
+                    console.log('❌ 실패!');
+                    lives--;
+                    combo = 0; // 콤보 리셋
+                    updateLivesDisplay();
+                    enemies.splice(i, 1);
+                    
+                    // 실패 사운드
+                    const osc = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioContext.destination);
+                    osc.frequency.value = 150;
+                    osc.type = 'sawtooth';
+                    gain.gain.setValueAtTime(0.2, audioContext.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+                    osc.start(audioContext.currentTime);
+                    osc.stop(audioContext.currentTime + 0.2);
+                    
+                    // 목숨이 0이 되면 게임 오버
+                    if (lives <= 0) {
+                        console.log('💀 GAME OVER');
+                        stopBGM();
+                        playGameOverSound();
+                        gameActive = false;
+                        drawGameOver();
+                        return;
+                    }
                 }
             }
         }
@@ -450,6 +505,7 @@
     }
 
     update();
+    updateLivesDisplay();
 </script>
 </body>
 </html>
