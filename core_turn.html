@@ -203,7 +203,11 @@
         oscillator.stop(audioContext.currentTime + 0.3);
     }
 
-    canvas.addEventListener('mousedown', () => {
+    canvas.addEventListener('mousedown', (event) => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+        
         // 메뉴 화면에서 게임 시작
         if (!gameStarted) {
             gameStarted = true;
@@ -213,15 +217,34 @@
             return;
         }
         
-        // 첫 클릭에 BGM 시작 (브라우저 정책상 사용자 인터랙션 필요)
-        if (!bgmPlaying && gameActive) {
-            playBGM();
+        // 게임 오버 상태에서 버튼 클릭 처리
+        if (!gameActive) {
+            // RETRY 버튼 (50, 240, 130, 50)
+            if (mouseX >= 50 && mouseX <= 180 && mouseY >= 240 && mouseY <= 290) {
+                resetGame();
+                return;
+            }
+            // QUIT 버튼 (220, 240, 130, 50)
+            if (mouseX >= 220 && mouseX <= 350 && mouseY >= 240 && mouseY <= 290) {
+                // 메뉴로 돌아가기
+                gameStarted = false;
+                gameActive = true;
+                uiElement.classList.add('hidden');
+                score = 0;
+                combo = 0;
+                enemies = [];
+                particles = [];
+                lives = 3;
+                rotationIndex = 0;
+                updateLivesDisplay(); // 생명 표시 초기화
+                stopBGM();
+                drawMenu();
+                return;
+            }
+            return;
         }
         
-        if(!gameActive) { 
-            resetGame();
-            return; 
-        }
+        // 게임 플레이 중 회전
         rotationIndex = (rotationIndex + 1) % 4;
         playRotateSound();
     });
@@ -289,33 +312,57 @@
     setInterval(spawnEnemy, 1000);
 
     function drawGameOver() {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+        ctx.fillStyle = "rgba(0, 0, 0, 0.9)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = "white";
-        ctx.font = "bold 35px Arial";
+        ctx.font = "bold 40px Arial";
         ctx.textAlign = "center";
-        ctx.fillText("GAME OVER", 200, 170);
-        ctx.font = "18px Arial";
+        ctx.fillText("GAME OVER", 200, 120);
+        ctx.font = "20px Arial";
         ctx.fillStyle = "#aaa";
-        ctx.fillText(`Final Score: ${score}`, 200, 210);
+        ctx.fillText(`Final Score: ${score}`, 200, 160);
         
         // 최고 기록 표시
         if (score >= highScore) {
             ctx.fillStyle = "#FFD700";
-            ctx.font = "bold 20px Arial";
-            ctx.fillText("🏆 NEW RECORD! 🏆", 200, 245);
+            ctx.font = "bold 22px Arial";
+            ctx.fillText("🏆 NEW RECORD! 🏆", 200, 200);
         } else {
             ctx.fillStyle = "#888";
-            ctx.font = "16px Arial";
-            ctx.fillText(`Best: ${highScore}`, 200, 240);
+            ctx.font = "18px Arial";
+            ctx.fillText(`Best: ${highScore}`, 200, 195);
         }
         
-        ctx.font = "14px Arial";
-        ctx.fillStyle = "#aaa";
-        ctx.fillText("클릭해서 다시 도전", 200, 280);
+        // RETRY 버튼
+        ctx.fillStyle = "rgba(68, 255, 68, 0.2)";
+        ctx.fillRect(50, 240, 130, 50);
+        ctx.strokeStyle = "#44FF44";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(50, 240, 130, 50);
+        ctx.fillStyle = "#44FF44";
+        ctx.font = "bold 18px Arial";
+        ctx.fillText("RETRY", 115, 272);
+        
+        // QUIT 버튼
+        ctx.fillStyle = "rgba(255, 68, 68, 0.2)";
+        ctx.fillRect(220, 240, 130, 50);
+        ctx.strokeStyle = "#FF4444";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(220, 240, 130, 50);
+        ctx.fillStyle = "#FF4444";
+        ctx.font = "bold 18px Arial";
+        ctx.fillText("QUIT", 285, 272);
+        
+        // 설명
+        ctx.fillStyle = "#666";
+        ctx.font = "12px Arial";
+        ctx.fillText("다시 도전", 115, 310);
+        ctx.fillText("메뉴로", 285, 310);
     }
 
     function drawMenu() {
+        if (gameStarted) return; // 게임 시작되면 메뉴 그리기 중단
+        
         ctx.fillStyle = "rgba(0, 0, 0, 0.95)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
@@ -355,15 +402,15 @@
         ctx.scale(pulseScale, pulseScale);
         
         ctx.fillStyle = "rgba(68, 255, 68, 0.2)";
-        ctx.fillRect(-80, -20, 160, 40);
+        ctx.fillRect(-85, -22, 170, 44);
         
         ctx.strokeStyle = "#44FF44";
         ctx.lineWidth = 3;
-        ctx.strokeRect(-80, -20, 160, 40);
+        ctx.strokeRect(-85, -22, 170, 44);
         
         ctx.fillStyle = "#44FF44";
-        ctx.font = "bold 20px Arial";
-        ctx.fillText("CLICK TO START", 0, 8);
+        ctx.font = "bold 18px Arial";
+        ctx.fillText("CLICK TO START", 0, 6);
         ctx.restore();
         
         // 설명
