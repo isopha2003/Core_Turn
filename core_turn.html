@@ -11,7 +11,7 @@
     </style>
 </head>
 <body>
-            <div id="ui">
+    <div id="ui">
         <h1>CORE TURN</h1>
         <p class="msg">클릭해서 회전! 같은 색 면으로 조각을 막으세요.</p>
         <h2 id="score">Score: 0</h2>
@@ -31,7 +31,7 @@
     canvas.width = 400;
     canvas.height = 400;
 
-    const COLORS = ['#FF4444', '#FFD700', '#44FF44', '#4444FF']; // 0:빨(상), 1:황(우), 2:초(하), 3:파(좌)
+    const COLORS = ['#FF4444', '#FFD700', '#44FF44', '#4444FF'];
     let score = 0;
     let rotationIndex = 0;
     let enemies = [];
@@ -41,226 +41,207 @@
     let particles = [];
     let lives = 3;
     let maxLives = 3;
-    let highScore = localStorage.getItem('coreturm_highscore') || 0;
-    let gameStarted = false;
-    let spawnInterval = null;
 
-    // 사운드 생성 함수
+    // ✅ Fix 1: localStorage를 try-catch로 감싸서 file:// 에러 방지
+    let highScore = 0;
+    try {
+        highScore = parseInt(localStorage.getItem('coreturm_highscore')) || 0;
+    } catch(e) {
+        highScore = 0;
+    }
+
+    let gameStarted = false;
+    let isSpawning = false;
+    let nextSpawnTime = 0;
+
+    // 오디오
     let audioContext = new (window.AudioContext || window.webkitAudioContext)();
     let bgmPlaying = false;
     let bgmTimeout = null;
-    
-    // 배경음악 - 신나는 업비트 멜로디
+
     function playBGM() {
         if (bgmPlaying) return;
         bgmPlaying = true;
-        
-        // 신나고 경쾌한 멜로디 - 약 8초 루프
         const melody = [
-            // 첫 번째 구간 (0-2초)
-            { freq: 659.25, time: 0.0, duration: 0.3 },    // E
-            { freq: 783.99, time: 0.3, duration: 0.3 },    // G
-            { freq: 880.00, time: 0.6, duration: 0.4 },    // A
-            { freq: 1046.50, time: 1.0, duration: 0.5 },   // C
-            { freq: 880.00, time: 1.5, duration: 0.25 },   // A
-            { freq: 783.99, time: 1.75, duration: 0.25 },  // G
-            
-            // 두 번째 구간 (2-4초)
-            { freq: 659.25, time: 2.0, duration: 0.3 },    // E
-            { freq: 783.99, time: 2.3, duration: 0.3 },    // G
-            { freq: 659.25, time: 2.6, duration: 0.2 },    // E
-            { freq: 587.33, time: 2.8, duration: 0.4 },    // D
-            { freq: 659.25, time: 3.2, duration: 0.4 },    // E
-            { freq: 783.99, time: 3.6, duration: 0.4 },    // G
-            
-            // 세 번째 구간 (4-6초)
-            { freq: 880.00, time: 4.0, duration: 0.3 },    // A
-            { freq: 1046.50, time: 4.3, duration: 0.3 },   // C
-            { freq: 1174.66, time: 4.6, duration: 0.4 },   // D (높은음)
-            { freq: 1046.50, time: 5.0, duration: 0.3 },   // C
-            { freq: 880.00, time: 5.3, duration: 0.3 },    // A
-            { freq: 783.99, time: 5.6, duration: 0.4 },    // G
-            
-            // 네 번째 구간 (6-8초)
-            { freq: 659.25, time: 6.0, duration: 0.4 },    // E
-            { freq: 587.33, time: 6.4, duration: 0.3 },    // D
-            { freq: 659.25, time: 6.7, duration: 0.3 },    // E
-            { freq: 783.99, time: 7.0, duration: 0.5 },    // G
-            { freq: 880.00, time: 7.5, duration: 0.5 },    // A
+            { freq: 659.25, time: 0.0, duration: 0.3 },
+            { freq: 783.99, time: 0.3, duration: 0.3 },
+            { freq: 880.00, time: 0.6, duration: 0.4 },
+            { freq: 1046.50, time: 1.0, duration: 0.5 },
+            { freq: 880.00, time: 1.5, duration: 0.25 },
+            { freq: 783.99, time: 1.75, duration: 0.25 },
+            { freq: 659.25, time: 2.0, duration: 0.3 },
+            { freq: 783.99, time: 2.3, duration: 0.3 },
+            { freq: 659.25, time: 2.6, duration: 0.2 },
+            { freq: 587.33, time: 2.8, duration: 0.4 },
+            { freq: 659.25, time: 3.2, duration: 0.4 },
+            { freq: 783.99, time: 3.6, duration: 0.4 },
+            { freq: 880.00, time: 4.0, duration: 0.3 },
+            { freq: 1046.50, time: 4.3, duration: 0.3 },
+            { freq: 1174.66, time: 4.6, duration: 0.4 },
+            { freq: 1046.50, time: 5.0, duration: 0.3 },
+            { freq: 880.00, time: 5.3, duration: 0.3 },
+            { freq: 783.99, time: 5.6, duration: 0.4 },
+            { freq: 659.25, time: 6.0, duration: 0.4 },
+            { freq: 587.33, time: 6.4, duration: 0.3 },
+            { freq: 659.25, time: 6.7, duration: 0.3 },
+            { freq: 783.99, time: 7.0, duration: 0.5 },
+            { freq: 880.00, time: 7.5, duration: 0.5 },
         ];
-        
         const loopDuration = 8.0;
-        
         function playLoop() {
             if (!bgmPlaying) return;
-            
             const startTime = audioContext.currentTime;
-            
             melody.forEach(note => {
                 const osc = audioContext.createOscillator();
                 const gain = audioContext.createGain();
-                
                 osc.connect(gain);
                 gain.connect(audioContext.destination);
-                
                 osc.type = 'square';
                 osc.frequency.value = note.freq;
-                
                 gain.gain.setValueAtTime(0, startTime + note.time);
                 gain.gain.linearRampToValueAtTime(0.12, startTime + note.time + 0.01);
                 gain.gain.exponentialRampToValueAtTime(0.01, startTime + note.time + note.duration);
-                
                 osc.start(startTime + note.time);
                 osc.stop(startTime + note.time + note.duration);
             });
-            
             bgmTimeout = setTimeout(playLoop, loopDuration * 1000);
         }
-        
         playLoop();
     }
-    
+
     function stopBGM() {
         bgmPlaying = false;
-        if (bgmTimeout) {
-            clearTimeout(bgmTimeout);
-            bgmTimeout = null;
-        }
-        // AudioContext 완전히 닫고 새로 생성
+        if (bgmTimeout) { clearTimeout(bgmTimeout); bgmTimeout = null; }
         if (audioContext) {
             audioContext.close();
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
         }
     }
-    
+
     function playRotateSound() {
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.frequency.value = 400;
-        oscillator.type = 'sine';
-        
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
-        
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.1);
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain); gain.connect(audioContext.destination);
+        osc.frequency.value = 400; osc.type = 'sine';
+        gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+        osc.start(audioContext.currentTime); osc.stop(audioContext.currentTime + 0.1);
     }
-    
+
     function playSuccessSound() {
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        // 콤보에 따라 음높이 변경
-        oscillator.frequency.value = 800 + (combo * 50);
-        oscillator.type = 'triangle';
-        
-        gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
-        
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.15);
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain); gain.connect(audioContext.destination);
+        osc.frequency.value = 800 + (combo * 50); osc.type = 'triangle';
+        gain.gain.setValueAtTime(0.2, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+        osc.start(audioContext.currentTime); osc.stop(audioContext.currentTime + 0.15);
     }
-    
-    function playComboSound(comboCount) {
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.frequency.setValueAtTime(1000, audioContext.currentTime);
-        oscillator.frequency.exponentialRampToValueAtTime(1500, audioContext.currentTime + 0.2);
-        oscillator.type = 'square';
-        
-        gainNode.gain.setValueAtTime(0.25, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
-        
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.2);
+
+    function playComboSound() {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain); gain.connect(audioContext.destination);
+        osc.frequency.setValueAtTime(1000, audioContext.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1500, audioContext.currentTime + 0.2);
+        osc.type = 'square';
+        gain.gain.setValueAtTime(0.25, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+        osc.start(audioContext.currentTime); osc.stop(audioContext.currentTime + 0.2);
     }
-    
+
     function playGameOverSound() {
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.frequency.setValueAtTime(300, audioContext.currentTime);
-        oscillator.frequency.exponentialRampToValueAtTime(100, audioContext.currentTime + 0.3);
-        oscillator.type = 'sawtooth';
-        
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-        
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.3);
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain); gain.connect(audioContext.destination);
+        osc.frequency.setValueAtTime(300, audioContext.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(100, audioContext.currentTime + 0.3);
+        osc.type = 'sawtooth';
+        gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+        osc.start(audioContext.currentTime); osc.stop(audioContext.currentTime + 0.3);
+    }
+
+    function spawnEnemy() {
+        if (!gameActive || !gameStarted) return;
+        isSpawning = true;
+
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 300;
+        const colorIndex = Math.floor(Math.random() * 4);
+        let speedLevel = Math.floor(combo / 5);
+        let speed = 0.8 + (speedLevel * 0.3);
+
+        enemies.push({
+            x: 200 + Math.cos(angle) * dist,
+            y: 200 + Math.sin(angle) * dist,
+            color: COLORS[colorIndex],
+            colorIndex: colorIndex,
+            speed: speed,
+            size: 10
+        });
+
+        setTimeout(() => { isSpawning = false; }, 100);
+    }
+
+    function startSpawning() {
+        isSpawning = false;
+        // ✅ Fix 2: 첫 적은 1.5초 후 생성
+        nextSpawnTime = Date.now() + 1500;
+    }
+
+    function stopSpawning() {
+        isSpawning = false;
+        nextSpawnTime = 0;
     }
 
     canvas.addEventListener('mousedown', (event) => {
         const rect = canvas.getBoundingClientRect();
         const mouseX = event.clientX - rect.left;
         const mouseY = event.clientY - rect.top;
-        
-        // 메뉴 화면에서 게임 시작
+
         if (!gameStarted) {
-            gameStarted = true;
-            uiElement.classList.remove('hidden'); // UI 표시
-            startSpawning(); // 적 생성 시작
-            playBGM();
-            update();
+            if (mouseX >= 115 && mouseX <= 285 && mouseY >= 318 && mouseY <= 362) {
+                gameStarted = true;
+                gameActive = true;
+                enemies = [];
+                particles = [];
+                uiElement.classList.remove('hidden');
+                startSpawning();
+                playBGM();
+                update();
+            }
             return;
         }
-        
-        // 게임 오버 상태에서 버튼 클릭 처리
+
         if (!gameActive) {
-            // RETRY 버튼 (50, 240, 130, 50)
             if (mouseX >= 50 && mouseX <= 180 && mouseY >= 240 && mouseY <= 290) {
                 resetGame();
-                startSpawning(); // 적 생성 재시작
+                startSpawning();
                 return;
             }
-            // QUIT 버튼 (220, 240, 130, 50)
             if (mouseX >= 220 && mouseX <= 350 && mouseY >= 240 && mouseY <= 290) {
-                // 메뉴로 돌아가기
                 gameStarted = false;
                 gameActive = true;
                 uiElement.classList.add('hidden');
-                score = 0;
-                combo = 0;
-                enemies = [];
-                particles = [];
-                lives = 3;
-                rotationIndex = 0;
-                updateLivesDisplay(); // 생명 표시 초기화
-                stopSpawning(); // 적 생성 중단
+                score = 0; combo = 0; enemies = []; particles = []; lives = 3; rotationIndex = 0;
+                updateLivesDisplay();
+                stopSpawning();
                 stopBGM();
                 drawMenu();
                 return;
             }
             return;
         }
-        
-        // 게임 플레이 중 회전
+
         rotationIndex = (rotationIndex + 1) % 4;
         playRotateSound();
     });
 
     function updateLivesDisplay() {
         let heartsHTML = '';
-        for (let i = 0; i < lives; i++) {
-            heartsHTML += '<span style="color: #44FF44;">●</span> ';
-        }
-        for (let i = lives; i < maxLives; i++) {
-            heartsHTML += '<span style="color: #333;">●</span> ';
-        }
+        for (let i = 0; i < lives; i++) heartsHTML += '<span style="color: #44FF44;">●</span> ';
+        for (let i = lives; i < maxLives; i++) heartsHTML += '<span style="color: #333;">●</span> ';
         livesElement.innerHTML = heartsHTML;
     }
 
@@ -268,52 +249,26 @@
         highScoreElement.innerText = `Best: ${highScore}`;
         if (score > highScore) {
             highScore = score;
-            localStorage.setItem('coreturm_highscore', highScore);
+            // ✅ Fix 1: localStorage try-catch
+            try { localStorage.setItem('coreturm_highscore', highScore); } catch(e) {}
             highScoreElement.innerText = `Best: ${highScore}`;
             highScoreElement.style.color = '#FFD700';
         }
     }
 
     function resetGame() {
-        score = 0;
-        enemies = [];
-        rotationIndex = 0;
-        gameActive = true;
-        gameStarted = true;
-        combo = 0;
-        particles = [];
-        lives = 3;
+        score = 0; enemies = []; rotationIndex = 0;
+        gameActive = true; gameStarted = true;
+        combo = 0; particles = []; lives = 3;
         if (comboTimer) clearTimeout(comboTimer);
         scoreElement.innerText = `Score: 0`;
         scoreElement.style.color = "white";
         updateLivesDisplay();
         updateHighScore();
-        
-        // BGM 완전히 정지하고 재시작
         stopBGM();
-        setTimeout(() => {
-            playBGM();
-        }, 100);
-        
-        update(); 
+        setTimeout(() => { playBGM(); }, 100);
+        update();
     }
-
-    function spawnEnemy() {
-        if(!gameActive) return;
-        const angle = Math.random() * Math.PI * 2;
-        const dist = 300;
-        const colorIndex = Math.floor(Math.random() * 4);
-        enemies.push({
-            x: 200 + Math.cos(angle) * dist,
-            y: 200 + Math.sin(angle) * dist,
-            color: COLORS[colorIndex],
-            colorIndex: colorIndex,
-            speed: 1.5 + (score * 0.01),
-            size: 10
-        });
-    }
-
-    setInterval(spawnEnemy, 1000);
 
     function drawGameOver() {
         ctx.fillStyle = "rgba(0, 0, 0, 0.9)";
@@ -325,103 +280,65 @@
         ctx.font = "20px Arial";
         ctx.fillStyle = "#aaa";
         ctx.fillText(`Final Score: ${score}`, 200, 160);
-        
-        // 최고 기록 표시
-        if (score >= highScore) {
+        if (score >= highScore && score > 0) {
             ctx.fillStyle = "#FFD700";
             ctx.font = "bold 22px Arial";
-            ctx.fillText("🏆 NEW RECORD! 🏆", 200, 200);
+            ctx.fillText("NEW RECORD!", 200, 200);
         } else {
             ctx.fillStyle = "#888";
             ctx.font = "18px Arial";
             ctx.fillText(`Best: ${highScore}`, 200, 195);
         }
-        
-        // RETRY 버튼
         ctx.fillStyle = "rgba(68, 255, 68, 0.2)";
         ctx.fillRect(50, 240, 130, 50);
-        ctx.strokeStyle = "#44FF44";
-        ctx.lineWidth = 3;
+        ctx.strokeStyle = "#44FF44"; ctx.lineWidth = 3;
         ctx.strokeRect(50, 240, 130, 50);
-        ctx.fillStyle = "#44FF44";
-        ctx.font = "bold 18px Arial";
+        ctx.fillStyle = "#44FF44"; ctx.font = "bold 18px Arial";
         ctx.fillText("RETRY", 115, 272);
-        
-        // QUIT 버튼
         ctx.fillStyle = "rgba(255, 68, 68, 0.2)";
         ctx.fillRect(220, 240, 130, 50);
         ctx.strokeStyle = "#FF4444";
-        ctx.lineWidth = 3;
         ctx.strokeRect(220, 240, 130, 50);
         ctx.fillStyle = "#FF4444";
-        ctx.font = "bold 18px Arial";
         ctx.fillText("QUIT", 285, 272);
-        
-        // 설명
-        ctx.fillStyle = "#666";
-        ctx.font = "12px Arial";
+        ctx.fillStyle = "#666"; ctx.font = "12px Arial";
         ctx.fillText("다시 도전", 115, 310);
         ctx.fillText("메뉴로", 285, 310);
     }
 
     function drawMenu() {
-        if (gameStarted) return; // 게임 시작되면 메뉴 그리기 중단
-        
+        if (gameStarted) return;
         ctx.fillStyle = "rgba(0, 0, 0, 0.95)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // 타이틀
-        ctx.fillStyle = "white";
-        ctx.font = "bold 50px Arial";
-        ctx.textAlign = "center";
+        ctx.fillStyle = "white"; ctx.font = "bold 50px Arial"; ctx.textAlign = "center";
         ctx.fillText("CORE TURN", 200, 100);
-        
-        // 중앙 코어 미리보기
         ctx.save();
         ctx.translate(200, 200);
         const time = Date.now() / 1000;
         ctx.rotate(time * 0.5);
-        
-        for(let i=0; i<4; i++) {
-            ctx.beginPath();
-            ctx.strokeStyle = COLORS[i];
-            ctx.lineWidth = 12;
-            if(i===0) ctx.moveTo(-25, -30), ctx.lineTo(25, -30);
-            if(i===1) ctx.moveTo(30, -25), ctx.lineTo(30, 25);
-            if(i===2) ctx.moveTo(-25, 30), ctx.lineTo(25, 30);
-            if(i===3) ctx.moveTo(-30, -25), ctx.lineTo(-30, 25);
+        for (let i = 0; i < 4; i++) {
+            ctx.beginPath(); ctx.strokeStyle = COLORS[i]; ctx.lineWidth = 12;
+            if (i === 0) { ctx.moveTo(-25, -30); ctx.lineTo(25, -30); }
+            if (i === 1) { ctx.moveTo(30, -25); ctx.lineTo(30, 25); }
+            if (i === 2) { ctx.moveTo(-25, 30); ctx.lineTo(25, 30); }
+            if (i === 3) { ctx.moveTo(-30, -25); ctx.lineTo(-30, 25); }
             ctx.stroke();
         }
         ctx.restore();
-        
-        // 최고 기록
-        ctx.fillStyle = "#FFD700";
-        ctx.font = "24px Arial";
-        ctx.fillText(`🏆 Best: ${highScore}`, 200, 290);
-        
-        // 시작 버튼
+        ctx.fillStyle = "#FFD700"; ctx.font = "24px Arial";
+        ctx.fillText(`Best: ${highScore}`, 200, 290);
         const pulseScale = 1 + Math.sin(time * 3) * 0.05;
         ctx.save();
-        ctx.translate(200, 340);
-        ctx.scale(pulseScale, pulseScale);
-        
+        ctx.translate(200, 340); ctx.scale(pulseScale, pulseScale);
         ctx.fillStyle = "rgba(68, 255, 68, 0.2)";
         ctx.fillRect(-85, -22, 170, 44);
-        
-        ctx.strokeStyle = "#44FF44";
-        ctx.lineWidth = 3;
+        ctx.strokeStyle = "#44FF44"; ctx.lineWidth = 3;
         ctx.strokeRect(-85, -22, 170, 44);
-        
-        ctx.fillStyle = "#44FF44";
-        ctx.font = "bold 18px Arial";
+        ctx.fillStyle = "#44FF44"; ctx.font = "bold 18px Arial";
         ctx.fillText("CLICK TO START", 0, 6);
         ctx.restore();
-        
-        // 설명
-        ctx.fillStyle = "#888";
-        ctx.font = "14px Arial";
+        ctx.fillStyle = "#888"; ctx.font = "14px Arial";
         ctx.fillText("같은 색 면으로 조각을 막으세요", 200, 380);
-        
         requestAnimationFrame(drawMenu);
     }
 
@@ -430,41 +347,32 @@
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // 4분면 구분선 그리기 (가이드)
+        // ✅ Fix 2: 시간 기반 적 생성 (nextSpawnTime이 설정된 경우만)
+        if (gameStarted && nextSpawnTime > 0) {
+            const now = Date.now();
+            if (now >= nextSpawnTime && !isSpawning) {
+                spawnEnemy();
+                // 다음 기본 생성은 2.5초 후 (콤보 없을 때 fallback)
+                nextSpawnTime = now + 2500;
+            }
+        }
+
+        // 가이드선
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
         ctx.lineWidth = 1;
         ctx.setLineDash([5, 5]);
-        
-        // 수직선
-        ctx.beginPath();
-        ctx.moveTo(200, 0);
-        ctx.lineTo(200, 400);
-        ctx.stroke();
-        
-        // 수평선
-        ctx.beginPath();
-        ctx.moveTo(0, 200);
-        ctx.lineTo(400, 200);
-        ctx.stroke();
-        
+        ctx.beginPath(); ctx.moveTo(200, 0); ctx.lineTo(200, 400); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, 200); ctx.lineTo(400, 200); ctx.stroke();
         ctx.setLineDash([]);
 
-        // 파티클 그리기 및 업데이트
+        // 파티클
         for (let i = particles.length - 1; i >= 0; i--) {
             let p = particles[i];
-            p.x += p.vx;
-            p.y += p.vy;
-            p.life -= 1;
-            p.alpha = p.life / 30;
-            
+            p.x += p.vx; p.y += p.vy;
+            p.life -= 1; p.alpha = p.life / 30;
             ctx.fillStyle = `rgba(${p.r}, ${p.g}, ${p.b}, ${p.alpha})`;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-            ctx.fill();
-            
-            if (p.life <= 0) {
-                particles.splice(i, 1);
-            }
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+            if (p.life <= 0) particles.splice(i, 1);
         }
 
         // 콤보 표시
@@ -473,195 +381,145 @@
             ctx.font = `bold ${30 + combo * 2}px Arial`;
             ctx.textAlign = 'center';
             ctx.fillStyle = combo >= 10 ? '#FF00FF' : combo >= 5 ? '#FFD700' : '#FFF';
-            ctx.strokeStyle = '#000';
-            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#000'; ctx.lineWidth = 3;
             ctx.strokeText(`${combo} COMBO!`, 200, 80);
             ctx.fillText(`${combo} COMBO!`, 200, 80);
             ctx.restore();
         }
 
-        // 중앙 코어 그리기
+        // 코어
         ctx.save();
         ctx.translate(200, 200);
         ctx.rotate(rotationIndex * (Math.PI / 2));
-        
-        for(let i=0; i<4; i++) {
-            ctx.beginPath();
-            ctx.strokeStyle = COLORS[i];
-            ctx.lineWidth = 10;
-            if(i===0) ctx.moveTo(-20, -25), ctx.lineTo(20, -25); // 상 (빨강)
-            if(i===1) ctx.moveTo(25, -20), ctx.lineTo(25, 20);   // 우 (황색)
-            if(i===2) ctx.moveTo(-20, 25), ctx.lineTo(20, 25);   // 하 (초록)
-            if(i===3) ctx.moveTo(-25, -20), ctx.lineTo(-25, 20); // 좌 (파랑)
+        for (let i = 0; i < 4; i++) {
+            ctx.beginPath(); ctx.strokeStyle = COLORS[i]; ctx.lineWidth = 10;
+            if (i === 0) { ctx.moveTo(-20, -25); ctx.lineTo(20, -25); }
+            if (i === 1) { ctx.moveTo(25, -20); ctx.lineTo(25, 20); }
+            if (i === 2) { ctx.moveTo(-20, 25); ctx.lineTo(20, 25); }
+            if (i === 3) { ctx.moveTo(-25, -20); ctx.lineTo(-25, 20); }
             ctx.stroke();
         }
         ctx.restore();
 
-        // 적 이동 및 충돌 체크
+        // 적 처리
         for (let i = enemies.length - 1; i >= 0; i--) {
             let e = enemies[i];
             let dx = 200 - e.x;
             let dy = 200 - e.y;
             let dist = Math.hypot(dx, dy);
-            
-            // 5콤보 단위로 속도 증가
+
             let speedLevel = Math.floor(combo / 5);
-            e.speed = 1.5 + (speedLevel * 0.5);
-            
+            e.speed = 0.8 + (speedLevel * 0.3);
             e.x += (dx / dist) * e.speed;
             e.y += (dy / dist) * e.speed;
 
             ctx.fillStyle = e.color;
-            ctx.beginPath();
-            ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.beginPath(); ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2); ctx.fill();
 
             if (dist < 32) {
-                // 적의 위치로 진입 방향 판단
-                // 상(0), 우(1), 하(2), 좌(3)
                 let relX = e.x - 200;
                 let relY = e.y - 200;
-                
-                // 경계선 근처 판정을 위한 허용 범위
-                const threshold = 0.7; // X와 Y 차이가 이 비율 이하면 경계선으로 간주
-                
-                let entrySides = []; // 가능한 진입 방향들
-                
-                if (Math.abs(relX) / Math.abs(relY) > threshold && Math.abs(relX) / Math.abs(relY) < 1/threshold) {
-                    // 대각선 근처 - 두 방향 모두 체크
-                    if (relX > 0 && relY > 0) {
-                        entrySides = [1, 2]; // 우, 하
-                    } else if (relX < 0 && relY > 0) {
-                        entrySides = [3, 2]; // 좌, 하
-                    } else if (relX < 0 && relY < 0) {
-                        entrySides = [3, 0]; // 좌, 상
-                    } else {
-                        entrySides = [1, 0]; // 우, 상
-                    }
+                const threshold = 0.7;
+                let entrySides = [];
+
+                if (Math.abs(relX) / Math.abs(relY) > threshold && Math.abs(relX) / Math.abs(relY) < 1 / threshold) {
+                    if (relX > 0 && relY > 0) entrySides = [1, 2];
+                    else if (relX < 0 && relY > 0) entrySides = [3, 2];
+                    else if (relX < 0 && relY < 0) entrySides = [3, 0];
+                    else entrySides = [1, 0];
                 } else {
-                    // 명확한 방향
-                    if (Math.abs(relX) > Math.abs(relY)) {
-                        entrySides = [relX > 0 ? 1 : 3]; // 우 or 좌
-                    } else {
-                        entrySides = [relY > 0 ? 2 : 0]; // 하 or 상
-                    }
+                    if (Math.abs(relX) > Math.abs(relY)) entrySides = [relX > 0 ? 1 : 3];
+                    else entrySides = [relY > 0 ? 2 : 0];
                 }
 
-                // 여러 방향 중 하나라도 색이 맞으면 성공
                 let success = false;
                 for (let side of entrySides) {
                     let currentColorIndexAtSide = (4 + side - rotationIndex) % 4;
-                    if (e.colorIndex === currentColorIndexAtSide) {
-                        success = true;
-                        break;
-                    }
+                    if (e.colorIndex === currentColorIndexAtSide) { success = true; break; }
                 }
 
-                // 디버그 출력
-                console.log(`적 색상: ${e.colorIndex}, 진입 방향: ${entrySides}, 회전: ${rotationIndex}, 결과: ${success ? '✅' : '❌'}`);
+                enemies.splice(i, 1);
 
                 if (success) {
-                    // 성공!
-                    console.log('✅ 성공!');
                     playSuccessSound();
-                    enemies.splice(i, 1);
-                    
-                    // 콤보 증가
                     combo++;
+
+                    // ✅ Fix 2 핵심: 성공 시 콤보 타이머를 넉넉하게 (4초)
                     if (comboTimer) clearTimeout(comboTimer);
-                    comboTimer = setTimeout(() => {
-                        combo = 0;
-                    }, 2000); // 2초 안에 다음 성공해야 콤보 유지
-                    
-                    // 콤보에 따른 점수 배율
+                    comboTimer = setTimeout(() => { combo = 0; }, 4000);
+
+                    // ✅ Fix 2 핵심: 성공 직후 0.8초 뒤에 바로 다음 적 생성
+                    nextSpawnTime = Date.now() + 800;
+
                     let comboMultiplier = Math.min(combo, 10);
                     score += 10 * comboMultiplier;
-                    
-                    // 5콤보마다 목숨 회복!
+
                     if (combo % 5 === 0 && combo > 0 && lives < maxLives) {
                         lives++;
                         updateLivesDisplay();
-                        // 목숨 회복 사운드
                         const osc = audioContext.createOscillator();
                         const gain = audioContext.createGain();
-                        osc.connect(gain);
-                        gain.connect(audioContext.destination);
+                        osc.connect(gain); gain.connect(audioContext.destination);
                         osc.frequency.setValueAtTime(1200, audioContext.currentTime);
                         osc.frequency.exponentialRampToValueAtTime(1800, audioContext.currentTime + 0.3);
                         gain.gain.setValueAtTime(0.3, audioContext.currentTime);
                         gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-                        osc.start(audioContext.currentTime);
-                        osc.stop(audioContext.currentTime + 0.3);
+                        osc.start(audioContext.currentTime); osc.stop(audioContext.currentTime + 0.3);
                     }
-                    
-                    // 콤보 사운드 (3콤보 이상일 때)
-                    if (combo >= 3 && combo % 3 === 0) {
-                        playComboSound(combo);
-                    }
-                    
-                    // 파티클 생성
+
+                    if (combo >= 3 && combo % 3 === 0) playComboSound();
+
                     for (let j = 0; j < 10 + combo; j++) {
                         const angle = (Math.PI * 2 * j) / (10 + combo);
                         const speed = 2 + Math.random() * 3;
                         const colorRGB = e.color === '#FF4444' ? [255, 68, 68] :
-                                       e.color === '#FFD700' ? [255, 215, 0] :
-                                       e.color === '#44FF44' ? [68, 255, 68] :
-                                       [68, 68, 255];
+                                         e.color === '#FFD700' ? [255, 215, 0] :
+                                         e.color === '#44FF44' ? [68, 255, 68] :
+                                         [68, 68, 255];
                         particles.push({
-                            x: e.x,
-                            y: e.y,
-                            vx: Math.cos(angle) * speed,
-                            vy: Math.sin(angle) * speed,
-                            r: colorRGB[0],
-                            g: colorRGB[1],
-                            b: colorRGB[2],
-                            alpha: 1,
-                            life: 30,
-                            size: 3 + Math.random() * 2
+                            x: e.x, y: e.y,
+                            vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+                            r: colorRGB[0], g: colorRGB[1], b: colorRGB[2],
+                            alpha: 1, life: 30, size: 3 + Math.random() * 2
                         });
                     }
-                    
+
                     scoreElement.innerText = `Score: ${score}`;
                     scoreElement.style.color = e.color;
                     updateHighScore();
+
                 } else {
-                    // 실패: 목숨 감소
-                    console.log('❌ 실패!');
                     lives--;
-                    combo = 0; // 콤보 리셋 -> 다음 프레임부터 속도 자동으로 느려짐
+                    combo = 0;
+                    if (comboTimer) clearTimeout(comboTimer);
                     updateLivesDisplay();
-                    enemies.splice(i, 1);
-                    
-                    // 실패 사운드
+
                     const osc = audioContext.createOscillator();
                     const gain = audioContext.createGain();
-                    osc.connect(gain);
-                    gain.connect(audioContext.destination);
-                    osc.frequency.value = 150;
-                    osc.type = 'sawtooth';
+                    osc.connect(gain); gain.connect(audioContext.destination);
+                    osc.frequency.value = 150; osc.type = 'sawtooth';
                     gain.gain.setValueAtTime(0.2, audioContext.currentTime);
                     gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
-                    osc.start(audioContext.currentTime);
-                    osc.stop(audioContext.currentTime + 0.2);
-                    
-                    // 목숨이 0이 되면 게임 오버
+                    osc.start(audioContext.currentTime); osc.stop(audioContext.currentTime + 0.2);
+
                     if (lives <= 0) {
-                        console.log('💀 GAME OVER');
-                        updateHighScore(); // 게임 오버 시 최고 기록 저장
-                        stopSpawning(); // 적 생성 중단
+                        updateHighScore();
+                        stopSpawning();
                         stopBGM();
                         playGameOverSound();
                         gameActive = false;
                         drawGameOver();
                         return;
                     }
+
+                    // 실패 후 다음 적은 2초 뒤
+                    nextSpawnTime = Date.now() + 2000;
                 }
             }
         }
         requestAnimationFrame(update);
     }
 
-    // 메뉴 화면 시작 (UI 숨기기)
     uiElement.classList.add('hidden');
     drawMenu();
     updateHighScore();
