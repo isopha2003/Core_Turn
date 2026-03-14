@@ -43,6 +43,7 @@
     let maxLives = 3;
     let highScore = localStorage.getItem('coreturm_highscore') || 0;
     let gameStarted = false;
+    let spawnInterval = null;
 
     // 사운드 생성 함수
     let audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -212,6 +213,7 @@
         if (!gameStarted) {
             gameStarted = true;
             uiElement.classList.remove('hidden'); // UI 표시
+            startSpawning(); // 적 생성 시작
             playBGM();
             update();
             return;
@@ -222,6 +224,7 @@
             // RETRY 버튼 (50, 240, 130, 50)
             if (mouseX >= 50 && mouseX <= 180 && mouseY >= 240 && mouseY <= 290) {
                 resetGame();
+                startSpawning(); // 적 생성 재시작
                 return;
             }
             // QUIT 버튼 (220, 240, 130, 50)
@@ -237,6 +240,7 @@
                 lives = 3;
                 rotationIndex = 0;
                 updateLivesDisplay(); // 생명 표시 초기화
+                stopSpawning(); // 적 생성 중단
                 stopBGM();
                 drawMenu();
                 return;
@@ -644,6 +648,7 @@
                     if (lives <= 0) {
                         console.log('💀 GAME OVER');
                         updateHighScore(); // 게임 오버 시 최고 기록 저장
+                        stopSpawning(); // 적 생성 중단
                         stopBGM();
                         playGameOverSound();
                         gameActive = false;
