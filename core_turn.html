@@ -170,7 +170,7 @@
         const dist = 300;
         const colorIndex = Math.floor(Math.random() * 4);
         let speedLevel = Math.floor(combo / 5);
-        let speed = 0.8 + (speedLevel * 0.3);
+        let speed = 1.8 + (speedLevel * 0.3);
 
         enemies.push({
             x: 200 + Math.cos(angle) * dist,
@@ -186,8 +186,8 @@
 
     function startSpawning() {
         isSpawning = false;
-        // ✅ Fix 2: 첫 적은 1.5초 후 생성
-        nextSpawnTime = Date.now() + 1500;
+        // 첫 적은 0.5초 후 생성
+        nextSpawnTime = Date.now() + 500;
     }
 
     function stopSpawning() {
@@ -347,13 +347,14 @@
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // ✅ Fix 2: 시간 기반 적 생성 (nextSpawnTime이 설정된 경우만)
+        // 시간 기반 독립 적 생성 (파괴 여부와 무관)
         if (gameStarted && nextSpawnTime > 0) {
             const now = Date.now();
             if (now >= nextSpawnTime && !isSpawning) {
                 spawnEnemy();
-                // 다음 기본 생성은 2.5초 후 (콤보 없을 때 fallback)
-                nextSpawnTime = now + 2500;
+                // 콤보에 따라 주기 단축: 2000ms → 최소 700ms
+                const spawnInterval = Math.max(700, 2000 - combo * 60);
+                nextSpawnTime = now + spawnInterval;
             }
         }
 
@@ -409,7 +410,7 @@
             let dist = Math.hypot(dx, dy);
 
             let speedLevel = Math.floor(combo / 5);
-            e.speed = 0.8 + (speedLevel * 0.3);
+            e.speed = 1.8 + (speedLevel * 0.3);
             e.x += (dx / dist) * e.speed;
             e.y += (dy / dist) * e.speed;
 
@@ -447,9 +448,6 @@
                     // ✅ Fix 2 핵심: 성공 시 콤보 타이머를 넉넉하게 (4초)
                     if (comboTimer) clearTimeout(comboTimer);
                     comboTimer = setTimeout(() => { combo = 0; }, 4000);
-
-                    // ✅ Fix 2 핵심: 성공 직후 0.8초 뒤에 바로 다음 적 생성
-                    nextSpawnTime = Date.now() + 800;
 
                     let comboMultiplier = Math.min(combo, 10);
                     score += 10 * comboMultiplier;
@@ -512,8 +510,6 @@
                         return;
                     }
 
-                    // 실패 후 다음 적은 2초 뒤
-                    nextSpawnTime = Date.now() + 2000;
                 }
             }
         }
