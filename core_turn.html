@@ -14,6 +14,7 @@
         <h1>CORE TURN</h1>
         <p class="msg">클릭해서 회전! 같은 색 면으로 조각을 막으세요.</p>
         <h2 id="score">Score: 0</h2>
+        <p id="highscore" style="font-size: 14px; color: #FFD700; margin-top: 5px;">Best: 0</p>
         <div id="lives" style="font-size: 20px; margin-top: 10px; font-family: monospace; letter-spacing: 3px;"></div>
     </div>
     <canvas id="gameCanvas"></canvas>
@@ -23,6 +24,7 @@
     const ctx = canvas.getContext('2d');
     const scoreElement = document.getElementById('score');
     const livesElement = document.getElementById('lives');
+    const highScoreElement = document.getElementById('highscore');
 
     canvas.width = 400;
     canvas.height = 400;
@@ -37,6 +39,7 @@
     let particles = [];
     let lives = 3;
     let maxLives = 3;
+    let highScore = localStorage.getItem('coreturm_highscore') || 0;
 
     // 사운드 생성 함수
     let audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -222,6 +225,16 @@
         livesElement.innerHTML = heartsHTML;
     }
 
+    function updateHighScore() {
+        highScoreElement.innerText = `Best: ${highScore}`;
+        if (score > highScore) {
+            highScore = score;
+            localStorage.setItem('coreturm_highscore', highScore);
+            highScoreElement.innerText = `Best: ${highScore}`;
+            highScoreElement.style.color = '#FFD700';
+        }
+    }
+
     function resetGame() {
         score = 0;
         enemies = [];
@@ -234,6 +247,7 @@
         scoreElement.innerText = `Score: 0`;
         scoreElement.style.color = "white";
         updateLivesDisplay();
+        updateHighScore();
         
         // BGM 완전히 정지하고 재시작
         stopBGM();
@@ -267,12 +281,25 @@
         ctx.fillStyle = "white";
         ctx.font = "bold 35px Arial";
         ctx.textAlign = "center";
-        ctx.fillText("GAME OVER", 200, 190);
+        ctx.fillText("GAME OVER", 200, 170);
         ctx.font = "18px Arial";
         ctx.fillStyle = "#aaa";
-        ctx.fillText(`Final Score: ${score}`, 200, 225);
+        ctx.fillText(`Final Score: ${score}`, 200, 210);
+        
+        // 최고 기록 표시
+        if (score >= highScore) {
+            ctx.fillStyle = "#FFD700";
+            ctx.font = "bold 20px Arial";
+            ctx.fillText("🏆 NEW RECORD! 🏆", 200, 245);
+        } else {
+            ctx.fillStyle = "#888";
+            ctx.font = "16px Arial";
+            ctx.fillText(`Best: ${highScore}`, 200, 240);
+        }
+        
         ctx.font = "14px Arial";
-        ctx.fillText("클릭해서 다시 도전", 200, 260);
+        ctx.fillStyle = "#aaa";
+        ctx.fillText("클릭해서 다시 도전", 200, 280);
     }
 
     function update() {
@@ -473,6 +500,7 @@
                     
                     scoreElement.innerText = `Score: ${score}`;
                     scoreElement.style.color = e.color;
+                    updateHighScore();
                 } else {
                     // 실패: 목숨 감소
                     console.log('❌ 실패!');
@@ -496,6 +524,7 @@
                     // 목숨이 0이 되면 게임 오버
                     if (lives <= 0) {
                         console.log('💀 GAME OVER');
+                        updateHighScore(); // 게임 오버 시 최고 기록 저장
                         stopBGM();
                         playGameOverSound();
                         gameActive = false;
@@ -510,6 +539,7 @@
 
     update();
     updateLivesDisplay();
+    updateHighScore();
 </script>
 </body>
 </html>
