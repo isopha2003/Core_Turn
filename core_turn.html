@@ -6,6 +6,7 @@
         body { margin: 0; background: #1a1a1a; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; color: white; font-family: 'Courier New', Courier, monospace; }
         canvas { border: 4px solid #333; box-shadow: 0 0 20px rgba(0,0,0,0.5); background: #050505; cursor: pointer; }
         #ui { position: absolute; top: 20px; text-align: center; pointer-events: none; }
+        #ui.hidden { display: none; }
         .msg { font-size: 14px; color: #888; }
     </style>
 </head>
@@ -25,6 +26,7 @@
     const scoreElement = document.getElementById('score');
     const livesElement = document.getElementById('lives');
     const highScoreElement = document.getElementById('highscore');
+    const uiElement = document.getElementById('ui');
 
     canvas.width = 400;
     canvas.height = 400;
@@ -40,6 +42,7 @@
     let lives = 3;
     let maxLives = 3;
     let highScore = localStorage.getItem('coreturm_highscore') || 0;
+    let gameStarted = false;
 
     // 사운드 생성 함수
     let audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -201,6 +204,15 @@
     }
 
     canvas.addEventListener('mousedown', () => {
+        // 메뉴 화면에서 게임 시작
+        if (!gameStarted) {
+            gameStarted = true;
+            uiElement.classList.remove('hidden'); // UI 표시
+            playBGM();
+            update();
+            return;
+        }
+        
         // 첫 클릭에 BGM 시작 (브라우저 정책상 사용자 인터랙션 필요)
         if (!bgmPlaying && gameActive) {
             playBGM();
@@ -240,6 +252,7 @@
         enemies = [];
         rotationIndex = 0;
         gameActive = true;
+        gameStarted = true;
         combo = 0;
         particles = [];
         lives = 3;
@@ -300,6 +313,65 @@
         ctx.font = "14px Arial";
         ctx.fillStyle = "#aaa";
         ctx.fillText("클릭해서 다시 도전", 200, 280);
+    }
+
+    function drawMenu() {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.95)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // 타이틀
+        ctx.fillStyle = "white";
+        ctx.font = "bold 50px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("CORE TURN", 200, 100);
+        
+        // 중앙 코어 미리보기
+        ctx.save();
+        ctx.translate(200, 200);
+        const time = Date.now() / 1000;
+        ctx.rotate(time * 0.5);
+        
+        for(let i=0; i<4; i++) {
+            ctx.beginPath();
+            ctx.strokeStyle = COLORS[i];
+            ctx.lineWidth = 12;
+            if(i===0) ctx.moveTo(-25, -30), ctx.lineTo(25, -30);
+            if(i===1) ctx.moveTo(30, -25), ctx.lineTo(30, 25);
+            if(i===2) ctx.moveTo(-25, 30), ctx.lineTo(25, 30);
+            if(i===3) ctx.moveTo(-30, -25), ctx.lineTo(-30, 25);
+            ctx.stroke();
+        }
+        ctx.restore();
+        
+        // 최고 기록
+        ctx.fillStyle = "#FFD700";
+        ctx.font = "24px Arial";
+        ctx.fillText(`🏆 Best: ${highScore}`, 200, 290);
+        
+        // 시작 버튼
+        const pulseScale = 1 + Math.sin(time * 3) * 0.05;
+        ctx.save();
+        ctx.translate(200, 340);
+        ctx.scale(pulseScale, pulseScale);
+        
+        ctx.fillStyle = "rgba(68, 255, 68, 0.2)";
+        ctx.fillRect(-80, -20, 160, 40);
+        
+        ctx.strokeStyle = "#44FF44";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(-80, -20, 160, 40);
+        
+        ctx.fillStyle = "#44FF44";
+        ctx.font = "bold 20px Arial";
+        ctx.fillText("CLICK TO START", 0, 8);
+        ctx.restore();
+        
+        // 설명
+        ctx.fillStyle = "#888";
+        ctx.font = "14px Arial";
+        ctx.fillText("같은 색 면으로 조각을 막으세요", 200, 380);
+        
+        requestAnimationFrame(drawMenu);
     }
 
     function update() {
@@ -537,8 +609,9 @@
         requestAnimationFrame(update);
     }
 
-    update();
-    updateLivesDisplay();
+    // 메뉴 화면 시작 (UI 숨기기)
+    uiElement.classList.add('hidden');
+    drawMenu();
     updateHighScore();
 </script>
 </body>
